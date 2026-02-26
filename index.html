@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoMod Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Variables ───────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0c10;
+      --surface:   #0f1318;
+      --panel:     #141920;
+      --border:    #1e2730;
+      --accent:    #00e5ff;
+      --accent2:   #ff3c6e;
+      --warn:      #ffb300;
+      --ok:        #00e676;
+      --text:      #e8edf2;
+      --muted:     #5a6880;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'Share Tech Mono', monospace;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-head); overflow-x: hidden; }
+
+    /* ── Scrollbar ───────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Scanline overlay ────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.015) 2px, rgba(0,229,255,0.015) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+
+    /* ══════════════════════════════════════════════════
+       LOGIN SCREEN
+    ══════════════════════════════════════════════════ */
+    #login-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,229,255,0.06) 0%, transparent 70%);
+    }
+    .login-card {
+      width: 420px; padding: 56px 48px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      position: relative;
+      animation: fadeUp .6s ease both;
+    }
+    .login-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+    .login-logo {
+      font-size: 11px; letter-spacing: 4px; text-transform: uppercase;
+      color: var(--accent); font-family: var(--font-mono); margin-bottom: 8px;
+    }
+    .login-title {
+      font-size: 38px; font-weight: 800; line-height: 1.1;
+      margin-bottom: 12px;
+    }
+    .login-title span { color: var(--accent); }
+    .login-sub { color: var(--muted); font-size: 14px; margin-bottom: 40px; font-family: var(--font-mono); }
+    .login-btn {
+      display: flex; align-items: center; gap: 14px;
+      width: 100%; padding: 16px 24px;
+      background: #5865F2; border: none; cursor: pointer;
+      color: #fff; font-family: var(--font-head); font-size: 15px; font-weight: 700;
+      letter-spacing: .5px;
+      transition: all .2s;
+      position: relative; overflow: hidden;
+    }
+    .login-btn::after {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(255,255,255,0); transition: background .2s;
+    }
+    .login-btn:hover::after { background: rgba(255,255,255,0.08); }
+    .login-btn:active { transform: scale(0.98); }
+    .login-btn svg { width: 24px; height: 24px; flex-shrink: 0; }
+    .corner-tl, .corner-br {
+      position: absolute; width: 16px; height: 16px;
+      border-color: var(--accent); border-style: solid;
+    }
+    .corner-tl { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+    .corner-br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+    /* ══════════════════════════════════════════════════
+       MAIN DASHBOARD LAYOUT
+    ══════════════════════════════════════════════════ */
+    #dashboard { display: none; height: 100vh; }
+    #dashboard.active { display: flex; animation: fadeIn .4s ease; }
+
+    /* ── Sidebar ─────────────────────────────────────── */
+    .sidebar {
+      width: 220px; flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 28px 0;
+    }
+    .sidebar-logo {
+      padding: 0 24px 28px;
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--accent); font-family: var(--font-mono);
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo strong { display: block; font-family: var(--font-head); font-size: 20px; font-weight: 800; color: var(--text); letter-spacing: 0; margin-top: 4px; }
+    .nav { margin-top: 20px; flex: 1; }
+    .nav-label {
+      padding: 0 24px 8px;
+      font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--muted); font-family: var(--font-mono);
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 24px; cursor: pointer;
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      transition: all .15s; border-left: 2px solid transparent;
+      user-select: none;
+    }
+    .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,255,0.05); }
+    .nav-item svg { width: 16px; height: 16px; opacity: .7; }
+    .nav-item.active svg { opacity: 1; }
+    .sidebar-user {
+      padding: 20px 24px 0;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #5865F2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: var(--bg);
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role { font-size: 10px; color: var(--accent); font-family: var(--font-mono); letter-spacing: 1px; }
+    .logout-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); padding: 4px; transition: color .15s;
+    }
+    .logout-btn:hover { color: var(--accent2); }
+
+    /* ── Main content ────────────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar {
+      height: 56px; flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex; align-items: center; padding: 0 32px;
+      gap: 16px;
+    }
+    .page-title { font-size: 18px; font-weight: 800; flex: 1; }
+    .guild-select {
+      background: var(--panel); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-head); font-size: 13px; font-weight: 600;
+      padding: 8px 12px; cursor: pointer; outline: none;
+      min-width: 180px;
+    }
+    .guild-select option { background: var(--panel); }
+    .content { flex: 1; overflow-y: auto; padding: 32px; }
+
+    /* ── Views ───────────────────────────────────────── */
+    .view { display: none; animation: fadeIn .3s ease; }
+    .view.active { display: block; }
+
+    /* ── Stat cards ──────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 20px 24px; position: relative; overflow: hidden;
+    }
+    .stat-card::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+    }
+    .stat-card.cyan::after { background: var(--accent); }
+    .stat-card.red::after { background: var(--accent2); }
+    .stat-card.yellow::after { background: var(--warn); }
+    .stat-card.green::after { background: var(--ok); }
+    .stat-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); font-family: var(--font-mono); margin-bottom: 8px; }
+    .stat-value { font-size: 36px; font-weight: 800; line-height: 1; }
+    .stat-card.cyan .stat-value { color: var(--accent); }
+    .stat-card.red .stat-value { color: var(--accent2); }
+    .stat-card.yellow .stat-value { color: var(--warn); }
+    .stat-card.green .stat-value { color: var(--ok); }
+    .stat-sub { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--font-mono); }
+
+    /* ── Table ───────────────────────────────────────── */
+    .table-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .section-title { font-size: 14px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 12px 20px; text-align: left;
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--muted); font-family: var(--font-mono);
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(0,229,255,0.03); }
+    tbody td { padding: 14px 20px; font-size: 13px; }
+    .badge {
+      display: inline-block; padding: 2px 8px;
+      font-size: 10px; font-family: var(--font-mono); letter-spacing: 1px;
+      text-transform: uppercase; border: 1px solid;
+    }
+    .badge-hate { color: var(--accent2); border-color: var(--accent2); background: rgba(255,60,110,0.08); }
+    .badge-toxic { color: var(--warn); border-color: var(--warn); background: rgba(255,179,0,0.08); }
+    .badge-spam { color: var(--accent); border-color: var(--accent); background: rgba(0,229,255,0.08); }
+    .badge-manual { color: var(--muted); border-color: var(--muted); background: transparent; }
+    .badge-low { color: var(--ok); border-color: var(--ok); background: rgba(0,230,118,0.08); }
+    .badge-medium { color: var(--warn); border-color: var(--warn); background: rgba(255,179,0,0.08); }
+    .badge-high { color: var(--accent2); border-color: var(--accent2); background: rgba(255,60,110,0.08); }
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .mini-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #5865F2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800; color: var(--bg); flex-shrink: 0;
+    }
+    .user-id { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+    .msg-preview { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+    .action-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: 5px 10px; cursor: pointer; font-family: var(--font-mono);
+      font-size: 10px; letter-spacing: 1px; transition: all .15s;
+    }
+    .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .action-btn.danger:hover { border-color: var(--accent2); color: var(--accent2); }
+
+    /* ── Search bar ──────────────────────────────────── */
+    .search-row { display: flex; gap: 12px; margin-bottom: 24px; }
+    .search-input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-mono); font-size: 13px;
+      padding: 12px 16px; outline: none; transition: border-color .15s;
+    }
+    .search-input::placeholder { color: var(--muted); }
+    .search-input:focus { border-color: var(--accent); }
+    .search-btn {
+      background: var(--accent); border: none; color: var(--bg);
+      font-family: var(--font-head); font-size: 13px; font-weight: 700;
+      padding: 12px 24px; cursor: pointer; letter-spacing: .5px;
+      transition: opacity .15s;
+    }
+    .search-btn:hover { opacity: .85; }
+
+    /* ── Settings form ───────────────────────────────── */
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .settings-card {
+      background: var(--surface); border: 1px solid var(--border); padding: 28px;
+    }
+    .settings-card-title {
+      font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--accent); font-family: var(--font-mono); margin-bottom: 20px;
+      padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; font-family: var(--font-mono); }
+    .form-input, .form-select {
+      width: 100%; background: var(--panel); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-mono); font-size: 13px;
+      padding: 10px 14px; outline: none; transition: border-color .15s;
+    }
+    .form-input:focus, .form-select:focus { border-color: var(--accent); }
+    .form-select option { background: var(--panel); }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-label { font-size: 13px; font-weight: 600; }
+    .toggle-desc { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; }
+    .toggle {
+      position: relative; width: 44px; height: 22px; cursor: pointer;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--border); transition: background .2s;
+    }
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+    .toggle-thumb {
+      position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; background: var(--bg);
+      transition: transform .2s;
+    }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(22px); }
+    .save-btn {
+      background: var(--accent); border: none; color: var(--bg);
+      font-family: var(--font-head); font-size: 14px; font-weight: 800;
+      padding: 14px 32px; cursor: pointer; letter-spacing: 1px;
+      text-transform: uppercase; transition: opacity .15s;
+      margin-top: 24px;
+    }
+    .save-btn:hover { opacity: .85; }
+
+    /* ── User profile card ───────────────────────────── */
+    .profile-card {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 28px; display: flex; align-items: center; gap: 24px; margin-bottom: 28px;
+      position: relative;
+    }
+    .profile-card::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--accent);
+    }
+    .profile-avatar {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #5865F2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 800; color: var(--bg); flex-shrink: 0;
+    }
+    .profile-name { font-size: 22px; font-weight: 800; }
+    .profile-id { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-top: 4px; }
+    .profile-stats { display: flex; gap: 24px; margin-top: 12px; }
+    .profile-stat { text-align: center; }
+    .profile-stat-val { font-size: 20px; font-weight: 800; color: var(--accent); }
+    .profile-stat-label { font-size: 10px; color: var(--muted); font-family: var(--font-mono); letter-spacing: 1px; }
+    .action-bar { display: flex; gap: 10px; margin-left: auto; }
+    .act-warn { background: rgba(255,179,0,0.1); border: 1px solid var(--warn); color: var(--warn); padding: 10px 18px; cursor: pointer; font-family: var(--font-head); font-weight: 700; font-size: 12px; letter-spacing: .5px; transition: background .15s; }
+    .act-warn:hover { background: rgba(255,179,0,0.2); }
+    .act-kick { background: rgba(0,229,255,0.1); border: 1px solid var(--accent); color: var(--accent); padding: 10px 18px; cursor: pointer; font-family: var(--font-head); font-weight: 700; font-size: 12px; letter-spacing: .5px; transition: background .15s; }
+    .act-kick:hover { background: rgba(0,229,255,0.2); }
+    .act-ban { background: rgba(255,60,110,0.1); border: 1px solid var(--accent2); color: var(--accent2); padding: 10px 18px; cursor: pointer; font-family: var(--font-head); font-weight: 700; font-size: 12px; letter-spacing: .5px; transition: background .15s; }
+    .act-ban:hover { background: rgba(255,60,110,0.2); }
+
+    /* ── Empty state ─────────────────────────────────── */
+    .empty-state { text-align: center; padding: 64px 32px; color: var(--muted); }
+    .empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: .3; }
+    .empty-state p { font-family: var(--font-mono); font-size: 13px; }
+
+    /* ── Modal ───────────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 32px; width: 480px; position: relative;
+      animation: fadeUp .3s ease;
+    }
+    .modal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent2), transparent); }
+    .modal-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+    .modal-sub { color: var(--muted); font-size: 13px; font-family: var(--font-mono); margin-bottom: 24px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+    .btn-cancel { background: none; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; cursor: pointer; font-family: var(--font-head); font-weight: 600; transition: all .15s; }
+    .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+    .btn-confirm { background: var(--accent2); border: none; color: #fff; padding: 10px 20px; cursor: pointer; font-family: var(--font-head); font-weight: 700; transition: opacity .15s; }
+    .btn-confirm:hover { opacity: .85; }
+
+    /* ── Toast ───────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 32px; right: 32px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 3px solid var(--ok);
+      padding: 14px 20px; font-size: 13px; font-family: var(--font-mono);
+      z-index: 200; transform: translateY(80px); opacity: 0;
+      transition: all .3s ease;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { border-left-color: var(--accent2); }
+
+    /* ── Animations ──────────────────────────────────── */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+    .loading { animation: pulse 1.2s ease infinite; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     LOGIN SCREEN
+═══════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="corner-tl"></div>
+    <div class="corner-br"></div>
+    <div class="login-logo">// AUTOMOD SYSTEM</div>
+    <h1 class="login-title">Mod<span>Control</span></h1>
+    <p class="login-sub">Authenticate to access the dashboard</p>
+    <button class="login-btn" onclick="handleLogin()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+      Continue with Discord
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     DASHBOARD
+═══════════════════════════════════════════════ -->
+<div id="dashboard">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      // SYSTEM
+      <strong>ModControl</strong>
+    </div>
+    <nav class="nav">
+      <div class="nav-label">Navigation</div>
+      <div class="nav-item active" onclick="showView('warnings', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Warnings
+      </div>
+      <div class="nav-item" onclick="showView('lookup', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        User Lookup
+      </div>
+      <div class="nav-item" onclick="showView('settings', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Bot Settings
+      </div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-avatar-init">M</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-username">ModUser</div>
+        <div class="user-role">MODERATOR</div>
+      </div>
+      <button class="logout-btn" onclick="handleLogout()" title="Logout">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="page-title" id="page-title">Warnings</div>
+      <select class="guild-select" id="guild-select" onchange="onGuildChange()">
+        <option value="demo1">🛡️ My Awesome Server</option>
+        <option value="demo2">⚔️ Gaming Lounge</option>
+      </select>
+    </div>
+
+    <div class="content">
+
+      <!-- ── WARNINGS VIEW ── -->
+      <div class="view active" id="view-warnings">
+        <div class="stats-grid">
+          <div class="stat-card cyan">
+            <div class="stat-label">Total Warnings</div>
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-sub">All time</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Hate Speech</div>
+            <div class="stat-value" id="stat-hate">0</div>
+            <div class="stat-sub">Flagged by AI</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-label">Toxic / Spam</div>
+            <div class="stat-value" id="stat-toxic">0</div>
+            <div class="stat-sub">Rule + AI flags</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Actions Taken</div>
+            <div class="stat-value" id="stat-actions">0</div>
+            <div class="stat-sub">Kicks + bans</div>
+          </div>
+        </div>
+
+        <div class="table-header">
+          <div class="section-title">Recent Warnings</div>
+          <button class="action-btn" onclick="loadWarnings()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Category</th>
+                <th>Severity</th>
+                <th>Message</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="warnings-table-body">
+              <tr><td colspan="6"><div class="loading" style="padding:40px;text-align:center;color:var(--muted);font-family:var(--font-mono)">Loading warnings...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── USER LOOKUP VIEW ── -->
+      <div class="view" id="view-lookup">
+        <div class="search-row">
+          <input class="search-input" id="lookup-input" type="text" placeholder="Enter Discord User ID or username..." />
+          <button class="search-btn" onclick="lookupUser()">Search</button>
+        </div>
+        <div id="lookup-result"></div>
+      </div>
+
+      <!-- ── SETTINGS VIEW ── -->
+      <div class="view" id="view-settings">
+        <div class="settings-grid">
+          <div class="settings-card">
+            <div class="settings-card-title">// Server Config</div>
+            <div class="form-group">
+              <label class="form-label">Mod Log Channel ID</label>
+              <input class="form-input" type="text" id="cfg-channel" placeholder="e.g. 1234567890" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kick Threshold (warnings)</label>
+              <input class="form-input" type="number" id="cfg-kick" value="3" min="1" max="20" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ban Threshold (warnings)</label>
+              <input class="form-input" type="number" id="cfg-ban" value="5" min="1" max="20" />
+            </div>
+            <button class="save-btn" onclick="saveSettings()">Save Changes</button>
+          </div>
+          <div class="settings-card">
+            <div class="settings-card-title">// Feature Toggles</div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">AutoMod Enabled</div>
+                <div class="toggle-desc">Master switch for all automoderation</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="cfg-automod" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">LLM Content Analysis</div>
+                <div class="toggle-desc">Use Llama 3 to detect toxic content</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="cfg-llm" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">Spam / Flood Detection</div>
+                <div class="toggle-desc">Rule-based rate limiting</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="cfg-spam" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">Auto DM on Warn</div>
+                <div class="toggle-desc">DM users when they are warned</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="cfg-dm" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /dashboard -->
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Confirm Action</div>
+    <div class="modal-sub" id="modal-sub">Are you sure?</div>
+    <div class="form-group">
+      <label class="form-label">Reason</label>
+      <input class="form-input" type="text" id="modal-reason" placeholder="Enter reason..." />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" id="modal-confirm-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG — replace with your actual API endpoint
+// ══════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://jeajdcozdeejhbirbmxq.supabase.co'; // ← replace with your Supabase project URL
+const API_BASE = `https://jeajdcozdeejhbirbmxq.supabase.co/functions/v1`;
+
+// ══════════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════════
+function handleLogin() {
+  // Redirect to Supabase Edge Function which handles Discord OAuth
+  window.location.href = `${API_BASE}/auth`;
+
+  // ── DEMO MODE (no backend) ──
+  // Comment the line above and uncomment below to test without deploying:
+  // localStorage.setItem('automod_user', JSON.stringify({ username: 'ModUser#1234', avatar: 'M' }));
+  // showDashboard();
+}
+
+function handleLogout() {
+  localStorage.removeItem('automod_user');
+  document.getElementById('dashboard').classList.remove('active');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  const dash = document.getElementById('dashboard');
+  dash.style.display = 'flex';
+  dash.classList.add('active');
+
+  const user = JSON.parse(localStorage.getItem('automod_user') || '{}');
+  document.getElementById('sidebar-username').textContent = user.username || 'ModUser';
+  document.getElementById('user-avatar-init').textContent = (user.username || 'M')[0].toUpperCase();
+
+  loadWarnings();
+  loadSettings();
+}
+
+// Check if already logged in or returning from OAuth
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  if (token) {
+    localStorage.setItem('automod_token', token);
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+    // Fetch user info from session
+    fetch(`${API_BASE}/auth/me`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(u => {
+        localStorage.setItem('automod_user', JSON.stringify({ username: u.username || 'Moderator', avatar: u.avatar }));
+        showDashboard();
+      })
+      .catch(() => {
+        // Fallback: show dashboard with token anyway
+        localStorage.setItem('automod_user', JSON.stringify({ username: 'Moderator', avatar: null }));
+        showDashboard();
+      });
+  } else if (localStorage.getItem('automod_token')) {
+    showDashboard();
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════
+function showView(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  el.classList.add('active');
+  const titles = { warnings: 'Warnings', lookup: 'User Lookup', settings: 'Bot Settings' };
+  document.getElementById('page-title').textContent = titles[name];
+}
+
+function onGuildChange() {
+  loadWarnings();
+  loadSettings();
+}
+
+function currentGuild() {
+  return document.getElementById('guild-select').value;
+}
+
+// ══════════════════════════════════════════════════════════
+// WARNINGS
+// ══════════════════════════════════════════════════════════
+async function loadWarnings() {
+  const body = document.getElementById('warnings-table-body');
+  body.innerHTML = `<tr><td colspan="6"><div class="loading" style="padding:40px;text-align:center;color:var(--muted);font-family:var(--font-mono)">Fetching data...</div></td></tr>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/warnings?guild_id=${currentGuild()}`, { headers: authHeaders() });
+    const data = await res.json();
+    renderWarnings(data.warnings || []);
+    renderStats(data.warnings || []);
+  } catch (e) {
+    // DEMO data when backend not connected
+    const demo = getDemoWarnings();
+    renderWarnings(demo);
+    renderStats(demo);
+  }
+}
+
+function renderStats(warnings) {
+  document.getElementById('stat-total').textContent = warnings.length;
+  document.getElementById('stat-hate').textContent = warnings.filter(w => w.category === 'hate_speech').length;
+  document.getElementById('stat-toxic').textContent = warnings.filter(w => ['toxic','spam'].includes(w.category)).length;
+  document.getElementById('stat-actions').textContent = warnings.filter(w => w.severity === 'high').length;
+}
+
+function renderWarnings(warnings) {
+  const body = document.getElementById('warnings-table-body');
+  if (!warnings.length) {
+    body.innerHTML = `<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>No warnings found for this server.</p></div></td></tr>`;
+    return;
+  }
+  body.innerHTML = warnings.map(w => `
+    <tr>
+      <td>
+        <div class="user-cell">
+          <div class="mini-avatar">${(w.username || w.user_id || '?')[0].toUpperCase()}</div>
+          <div>
+            <div>${w.username || 'Unknown User'}</div>
+            <div class="user-id">${w.user_id}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge badge-${w.category?.replace('_','')}">${w.category?.replace('_',' ') || '—'}</span></td>
+      <td><span class="badge badge-${w.severity}">${w.severity || '—'}</span></td>
+      <td><div class="msg-preview" title="${escHtml(w.message_content || '')}">${escHtml(w.message_content || '—')}</div></td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${formatDate(w.created_at)}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="action-btn" onclick="openLookupFromTable('${w.user_id}')">View</button>
+          <button class="action-btn danger" onclick="openModal('ban','${w.user_id}','${escHtml(w.username||'Unknown')}')">Ban</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// USER LOOKUP
+// ══════════════════════════════════════════════════════════
+function openLookupFromTable(userId) {
+  document.getElementById('lookup-input').value = userId;
+  showView('lookup', document.querySelector('.nav-item:nth-child(2)'));
+  lookupUser();
+}
+
+async function lookupUser() {
+  const query = document.getElementById('lookup-input').value.trim();
+  if (!query) return;
+  const result = document.getElementById('lookup-result');
+  result.innerHTML = `<div class="loading" style="color:var(--muted);font-family:var(--font-mono);padding:20px 0">Searching...</div>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/user/${query}?guild_id=${currentGuild()}`, { headers: authHeaders() });
+    const data = await res.json();
+    renderUserProfile(data);
+  } catch (e) {
+    // Demo
+    renderUserProfile(getDemoUser(query));
+  }
+}
+
+function renderUserProfile(user) {
+  const result = document.getElementById('lookup-result');
+  if (!user) {
+    result.innerHTML = `<div class="empty-state"><p>No user found matching that query.</p></div>`;
+    return;
+  }
+  const warnings = user.warnings || [];
+  result.innerHTML = `
+    <div class="profile-card">
+      <div class="profile-avatar">${(user.username || '?')[0].toUpperCase()}</div>
+      <div>
+        <div class="profile-name">${escHtml(user.username || 'Unknown User')}</div>
+        <div class="profile-id">ID: ${user.user_id}</div>
+        <div class="profile-stats">
+          <div class="profile-stat"><div class="profile-stat-val">${warnings.length}</div><div class="profile-stat-label">Warnings</div></div>
+          <div class="profile-stat"><div class="profile-stat-val">${warnings.filter(w=>w.category==='hate_speech').length}</div><div class="profile-stat-label">Hate Speech</div></div>
+          <div class="profile-stat"><div class="profile-stat-val">${warnings.filter(w=>w.severity==='high').length}</div><div class="profile-stat-label">High Sev.</div></div>
+        </div>
+      </div>
+      <div class="action-bar">
+        <button class="act-warn" onclick="openModal('warn','${user.user_id}','${escHtml(user.username||'Unknown')}')">⚠ Warn</button>
+        <button class="act-kick" onclick="openModal('kick','${user.user_id}','${escHtml(user.username||'Unknown')}')">↑ Kick</button>
+        <button class="act-ban"  onclick="openModal('ban', '${user.user_id}','${escHtml(user.username||'Unknown')}')">✕ Ban</button>
+      </div>
+    </div>
+    ${warnings.length ? `
+    <div class="table-header"><div class="section-title">Warning History</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Category</th><th>Severity</th><th>Reason</th><th>Date</th></tr></thead>
+        <tbody>
+          ${warnings.map(w=>`
+            <tr>
+              <td><span class="badge badge-${w.category?.replace('_','')}">${w.category?.replace('_',' ')||'—'}</span></td>
+              <td><span class="badge badge-${w.severity}">${w.severity||'—'}</span></td>
+              <td style="font-size:12px;color:var(--muted)">${escHtml(w.reason||'—')}</td>
+              <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${formatDate(w.created_at)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : `<div class="empty-state"><p>No warnings on record for this user.</p></div>`}
+  `;
+}
+
+// ══════════════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════════════
+async function loadSettings() {
+  try {
+    const res = await fetch(`${API_BASE}/api/config?guild_id=${currentGuild()}`, { headers: authHeaders() });
+    const cfg = await res.json();
+    applySettings(cfg);
+  } catch (e) {
+    applySettings({ mod_log_channel_id: '', warn_threshold_kick: 3, warn_threshold_ban: 5, automod_enabled: true, llm_check_enabled: true });
+  }
+}
+
+function applySettings(cfg) {
+  document.getElementById('cfg-channel').value = cfg.mod_log_channel_id || '';
+  document.getElementById('cfg-kick').value = cfg.warn_threshold_kick ?? 3;
+  document.getElementById('cfg-ban').value = cfg.warn_threshold_ban ?? 5;
+  document.getElementById('cfg-automod').checked = cfg.automod_enabled ?? true;
+  document.getElementById('cfg-llm').checked = cfg.llm_check_enabled ?? true;
+}
+
+async function saveSettings() {
+  const payload = {
+    guild_id: currentGuild(),
+    mod_log_channel_id: document.getElementById('cfg-channel').value,
+    warn_threshold_kick: parseInt(document.getElementById('cfg-kick').value),
+    warn_threshold_ban: parseInt(document.getElementById('cfg-ban').value),
+    automod_enabled: document.getElementById('cfg-automod').checked,
+    llm_check_enabled: document.getElementById('cfg-llm').checked,
+  };
+  try {
+    await fetch(`${API_BASE}/api/config`, { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    showToast('Settings saved successfully');
+  } catch (e) {
+    showToast('Settings saved (demo mode)', false);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// MODAL (warn/kick/ban)
+// ══════════════════════════════════════════════════════════
+let _modalAction = null, _modalUserId = null;
+const actionLabels = { warn: ['⚠️ Warn User', 'Issue a warning'], kick: ['↑ Kick User', 'Remove from server (can rejoin)'], ban: ['✕ Ban User', 'Permanently ban from server'] };
+
+function openModal(action, userId, username) {
+  _modalAction = action; _modalUserId = userId;
+  document.getElementById('modal-title').textContent = `${actionLabels[action][0]}: ${username}`;
+  document.getElementById('modal-sub').textContent = actionLabels[action][1];
+  document.getElementById('modal-reason').value = '';
+  document.getElementById('modal-confirm-btn').textContent = action.charAt(0).toUpperCase() + action.slice(1);
+  document.getElementById('modal-confirm-btn').onclick = confirmAction;
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+async function confirmAction() {
+  const reason = document.getElementById('modal-reason').value || 'No reason provided';
+  closeModal();
+  try {
+    await fetch(`${API_BASE}/api/action`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: _modalAction, user_id: _modalUserId, guild_id: currentGuild(), reason })
+    });
+    showToast(`User ${_modalAction}ned successfully`);
+    if (_modalAction !== 'warn') setTimeout(loadWarnings, 500);
+  } catch (e) {
+    showToast(`Action executed (demo mode)`, false);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════
+function authHeaders() {
+  const token = localStorage.getItem('automod_token') || '';
+  return { 'Authorization': `Bearer ${token}` };
+}
+
+function showToast(msg, success = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast${success ? '' : ' error'} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Demo data (shown when no backend) ────────────────────
+function getDemoWarnings() {
+  return [
+    { user_id:'281234567890', username:'BadActor99', category:'hate_speech', severity:'high', message_content:'[Message content hidden]', created_at: new Date(Date.now()-3600000).toISOString() },
+    { user_id:'371234567890', username:'SpamBot42',  category:'spam',       severity:'medium', message_content:'Buy cheap Nitro here!!! click now!!!', created_at: new Date(Date.now()-7200000).toISOString() },
+    { user_id:'451234567890', username:'ToxicUser',  category:'toxic',      severity:'medium', message_content:'You are all terrible at this game', created_at: new Date(Date.now()-86400000).toISOString() },
+    { user_id:'561234567890', username:'NewMember1', category:'spam',       severity:'low',    message_content:'hello hello hello hello hello', created_at: new Date(Date.now()-172800000).toISOString() },
+    { user_id:'671234567890', username:'AngryGuy',   category:'hate_speech',severity:'high',   message_content:'[Message content hidden]', created_at: new Date(Date.now()-259200000).toISOString() },
+  ];
+}
+
+function getDemoUser(query) {
+  return {
+    user_id: query || '281234567890',
+    username: 'BadActor99',
+    warnings: [
+      { category:'hate_speech', severity:'high',   reason:'Used slur in #general', created_at: new Date(Date.now()-3600000).toISOString() },
+      { category:'toxic',       severity:'medium', reason:'Harassing new members',  created_at: new Date(Date.now()-86400000).toISOString() },
+      { category:'spam',        severity:'low',    reason:'Repeated messages',       created_at: new Date(Date.now()-172800000).toISOString() },
+    ]
+  };
+}
+</script>
+</body>
+</html>
